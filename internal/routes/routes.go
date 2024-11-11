@@ -24,7 +24,12 @@ func SetupRouter(prov *provider.Provider) *gin.Engine {
 	router.Use(ErrorHandlerMiddleware())
 	router.Use(gin.Recovery())
 
-	// v1 := router.Group("/api/v1")
+	v1 := router.Group("/api/v1")
+
+	authRoutes:=v1.Group("/auth")
+	{
+		authRoutes.POST("/register",prov.AuthController.SignUpWithEmailAndPassword)
+	}
 
 
 	return router

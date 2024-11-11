@@ -23,7 +23,7 @@ func main() {
 
 	router := routes.SetupRouter(provider)
 	router.GET("/", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"message": "Hello to the SlightlyTechie OKR API!"})
+		c.JSON(http.StatusOK, gin.H{"message": "Welcome to the AidIQ!🚀"})
 	})
 
 	router.Run(":8080")
