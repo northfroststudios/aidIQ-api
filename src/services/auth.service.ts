@@ -1,13 +1,14 @@
 import * as bcrypt from "bcrypt";
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import { z } from "zod";
+import { config } from "../config/config";
 import { ValidationError } from "../helpers/errors";
 import { getChannel } from "../helpers/mq";
 import { User } from "../models/user.model";
 import { Verification } from "../models/verification.model";
-import { RegisterUserSchema } from "../schemas/auth.schema";
-import { IAPIResponse } from "../types/api.types";
+import { LoginSchema, RegisterUserSchema } from "../schemas/auth.schema";
 import { UserRegistrationEvent } from "../types/email.types";
 
 function generateVerificationToken(): string {
@@ -104,12 +105,13 @@ export async function Register(data: z.infer<typeof RegisterUserSchema>) {
       },
     };
   } catch (error) {
+    console.log("RegisterUserError: ", error);
     // Only abort if the transaction hasn't been committed
     if (session.inTransaction()) {
       await session.abortTransaction();
     }
     await session.endSession();
-    throw new Error(error as string);
+    throw new Error("unable to create account");
   }
 }
 
@@ -157,5 +159,81 @@ export async function VerifyEmail(token: string) {
 
     console.error("Verification error:", error);
     throw new Error("there was an error on the server. Please try again");
+  }
+}
+
+export async function Login(data: z.infer<typeof LoginSchema>) {
+  try {
+    const validationResults = LoginSchema.safeParse(data);
+    if (!validationResults.success) {
+      const field_errors = validationResults.error.errors.map((err) => ({
+        field: err.path[0],
+        message: err.message,
+      }));
+      throw new ValidationError(field_errors);
+    }
+
+    const { email, password } = data;
+
+    const existingUser = await User.findOne({ email });
+    if (!existingUser) {
+      throw new Error("no user exists with the provided email");
+    }
+
+    const isValidPassword = await bcrypt.compare(
+      password,
+      existingUser.password
+    );
+    if (!isValidPassword) {
+      throw new Error("invalid password");
+    }
+
+    const access_token = jwt.sign(
+      {
+        user_id: existingUser.id,
+        email: existingUser.email,
+      },
+      config.JWTSecret,
+      {
+        expiresIn: "15d",
+      }
+    );
+
+    const refresh_token = jwt.sign(
+      {
+        user_id: existingUser.id,
+        email: existingUser.email,
+      },
+      config.JWTSecret,
+      {
+        expiresIn: "30d",
+      }
+    );
+
+    return {
+      user: {
+        id: existingUser.id,
+        email: existingUser.email,
+      },
+      access_token,
+      refresh_token,
+    };
+  } catch (error) {
+    console.log("LoginError: ", error);
+
+    if (error instanceof ValidationError) {
+      throw error; // Rethrow validation errors with field details
+    }
+
+    if (error instanceof Error) {
+      if (
+        error.message === "no user exists with the provided email" ||
+        error.message === "invalid password"
+      ) {
+        throw error;
+      }
+    }
+
+    throw new Error("unable to login");
   }
 }
