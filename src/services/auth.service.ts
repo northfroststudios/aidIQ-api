@@ -9,9 +9,11 @@ import { getChannel } from "../helpers/mq";
 import { User } from "../models/user.model";
 import { Verification } from "../models/verification.model";
 import {
-  ForgotPasswordSchema,
+  EmailSchema,
   LoginSchema,
   RegisterUserSchema,
+  ResetPasswordSchema,
+  VerifyEmailSchema,
 } from "../schemas/auth.schema";
 import { EmailEvent } from "../types/email.types";
 
@@ -66,7 +68,7 @@ export async function Register(data: z.infer<typeof RegisterUserSchema>) {
 
     // Create verification token
     const verificationToken = generateVerificationToken();
-    const verificationUrl = `${process.env.APP_URL}/verify-email?token=${verificationToken}`;
+    const verificationUrl = `${process.env.APP_URL}/verify-email?email=${newUser[0].email}&token=${verificationToken}`;
     await Verification.create(
       [
         {
@@ -86,7 +88,7 @@ export async function Register(data: z.infer<typeof RegisterUserSchema>) {
     const channel = getChannel();
     const event: EmailEvent = {
       email: newUser[0].email,
-      subject:"Verify your email address",
+      subject: "Verify your email address",
       templateURL: "../../templates/verify-account.html",
       templateData: {
         Name: newUser[0].first_name,
@@ -120,54 +122,81 @@ export async function Register(data: z.infer<typeof RegisterUserSchema>) {
       await session.abortTransaction();
     }
     await session.endSession();
-    throw new Error("unable to create account");
+    throw new Error(error as string);
+  } finally {
+    await session.endSession();
   }
 }
 
-export async function VerifyEmail(token: string) {
+export async function VerifyEmail(data: z.infer<typeof VerifyEmailSchema>) {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
+    const validationResults = VerifyEmailSchema.safeParse(data);
+    if (!validationResults.success) {
+      await session.abortTransaction();
+      await session.endSession();
+      const field_errors = validationResults.error.errors.map((err) => ({
+        field: err.path[0],
+        message: err.message,
+      }));
+      throw new ValidationError(field_errors);
+    }
+
+    // Find the user by email
+    const user = await User.findOne({ email: data.email }).session(session);
+    if (!user) {
+      await session.abortTransaction();
+      throw new Error("User not found");
+    }
+
+    // Find the verification token
     const verification = await Verification.findOne({
-      token,
-      expiry: { $gt: new Date() },
+      user: user._id,
+      token: data.token,
+      expiry: { $gt: new Date() }, // Ensure the token is not expired
     }).session(session);
 
     if (!verification) {
       await session.abortTransaction();
-      await session.endSession();
       throw new Error("Invalid or expired verification token");
     }
 
-    const user = await User.findByIdAndUpdate(
-      verification.user,
+    // Activate the user
+    const updatedUser = await User.findByIdAndUpdate(
+      user._id,
       { is_active: true },
       { new: true, session }
     );
 
-    if (!user) {
+    if (!updatedUser) {
       await session.abortTransaction();
-      await session.endSession();
-      throw new Error("User not found");
+      throw new Error("Failed to update user");
     }
 
+    // Delete the verification token
     await Verification.deleteOne({ _id: verification._id }).session(session);
+
+    // Commit the transaction
     await session.commitTransaction();
-    await session.endSession();
+    session.endSession();
 
     return {
       message: "Email verified successfully",
-      data: {},
+      data: { user: updatedUser },
     };
   } catch (error) {
     if (session.inTransaction()) {
       await session.abortTransaction();
     }
-    await session.endSession();
+    session.endSession();
 
-    console.error("Verification error:", error);
-    throw new Error("there was an error on the server. Please try again");
+    throw new Error(
+      error instanceof Error ? error.message : "An unknown error occurred"
+    );
+  } finally {
+    await session.endSession();
   }
 }
 
@@ -229,29 +258,13 @@ export async function Login(data: z.infer<typeof LoginSchema>) {
     };
   } catch (error) {
     console.log("LoginError: ", error);
-
-    if (error instanceof ValidationError) {
-      throw error; // Rethrow validation errors with field details
-    }
-
-    if (error instanceof Error) {
-      if (
-        error.message === "no user exists with the provided email" ||
-        error.message === "invalid password"
-      ) {
-        throw error;
-      }
-    }
-
-    throw new Error("unable to login");
+    throw new Error(error as string);
   }
 }
 
-export async function ForgotPassword(
-  data: z.infer<typeof ForgotPasswordSchema>
-) {
+export async function ForgotPassword(data: z.infer<typeof EmailSchema>) {
   try {
-    const validationResults = ForgotPasswordSchema.safeParse(data);
+    const validationResults = EmailSchema.safeParse(data);
     if (!validationResults.success) {
       const field_errors = validationResults.error.errors.map((err) => ({
         field: err.path[0],
@@ -273,7 +286,7 @@ export async function ForgotPassword(
     const channel = getChannel();
     const event: EmailEvent = {
       email: existingUser.email,
-      subject:"Reset your password",
+      subject: "Reset your password",
       templateURL: "../../templates/reset-password.html",
       templateData: {
         ResetPasswordURL,
@@ -289,7 +302,145 @@ export async function ForgotPassword(
       message: "a reset link has been sent to your email",
     };
   } catch (error) {
-    console.log(error)
-    throw new Error("unable to send reset link");
+    console.log(error);
+    throw new Error(error as string);
+  }
+}
+
+export async function SendVerificationEmail(data: z.infer<typeof EmailSchema>) {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const validationResults = EmailSchema.safeParse(data);
+    if (!validationResults.success) {
+      const field_errors = validationResults.error.errors.map((err) => ({
+        field: err.path[0],
+        message: err.message,
+      }));
+      throw new ValidationError(field_errors);
+    }
+    const { email } = data;
+
+    const existingUser = await User.findOne({ email }).session(session);
+    if (!existingUser) {
+      throw new Error("no user exists with the provided email");
+    }
+
+    // Delete any existing verification tokens for this user
+    await Verification.deleteMany({
+      user: existingUser._id,
+      type: "email_verification",
+    }).session(session);
+
+    const verificationToken = generateVerificationToken();
+    const verificationUrl = `${process.env.APP_URL}/verify-email?email=${existingUser.email}&token=${verificationToken}`;
+
+    // Create new verification token
+    await Verification.create(
+      [
+        {
+          user: existingUser._id,
+          token: verificationToken,
+          expiry: getExpiryDate(),
+        },
+      ],
+      { session }
+    );
+
+    const channel = getChannel();
+    const event: EmailEvent = {
+      email: existingUser.email,
+      subject: "Verify your email address",
+      templateURL: "../../templates/verify-account.html",
+      templateData: {
+        Name: existingUser.first_name,
+        VerificationURL: verificationUrl,
+      },
+      timestamp: Date.now(),
+    };
+
+    channel.sendToQueue(
+      "user-registration",
+      Buffer.from(JSON.stringify(event)),
+      {
+        persistent: true,
+      }
+    );
+
+    // Commit the transaction before returning
+    await session.commitTransaction();
+
+    return {
+      message: "a reset link has been sent to your email",
+    };
+  } catch (error) {
+    console.log(error);
+    throw new Error(error as string);
+  } finally {
+    await session.endSession();
+  }
+}
+
+export async function ResetPassword(data: z.infer<typeof ResetPasswordSchema>) {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // Validate input data
+    const validationResults = ResetPasswordSchema.safeParse(data);
+    if (!validationResults.success) {
+      const field_errors = validationResults.error.errors.map((err) => ({
+        field: err.path[0],
+        message: err.message,
+      }));
+      throw new ValidationError(field_errors);
+    }
+
+    const { email, password, token } = data;
+
+    // Find user and verify token in a single query
+    const existingUser = await User.findOne({
+      email,
+    }).session(session);
+
+    if (!existingUser) {
+      throw new Error("user does not exist");
+    }
+
+    const verification = await Verification.findOne({
+      user: existingUser._id,
+      token,
+      expiry: { $gt: new Date() }, // Ensure the token is not expired
+    }).session(session);
+
+    if (!verification) {
+      throw new Error("Invalid or expired verification token");
+    }
+
+    // Hash and update password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Update user document
+    existingUser.password = hashedPassword;
+    await existingUser.save({ session });
+
+    // Commit transaction
+    await session.commitTransaction();
+
+    return {
+      success: true,
+      message: "Password has been reset successfully",
+    };
+  } catch (error) {
+    // Rollback transaction on error
+    await session.abortTransaction();
+
+    // Log unexpected errors and throw a generic error
+    console.error("Password reset error:", error);
+    throw new Error(error as string);
+  } finally {
+    // Always end the session
+    await session.endSession();
   }
 }

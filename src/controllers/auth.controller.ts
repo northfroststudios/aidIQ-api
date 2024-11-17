@@ -3,6 +3,8 @@ import {
   ForgotPassword,
   Login,
   Register,
+  ResetPassword,
+  SendVerificationEmail,
   VerifyEmail,
 } from "../services/auth.service";
 
@@ -55,9 +57,37 @@ async function ForgotPasswordHandler(
   }
 }
 
+async function SendVerificationEmailHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const data = await SendVerificationEmail(req.body);
+    res.status(201).json(data);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function ResetPasswordHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const data = await ResetPassword(req.body);
+    res.status(201).json(data);
+  } catch (error) {
+    next(error);
+  }
+}
+
 export {
   RegisterHandler,
   VerifyEmailHandler,
   LoginHandler,
   ForgotPasswordHandler,
+  SendVerificationEmailHandler,
+  ResetPasswordHandler,
 };
