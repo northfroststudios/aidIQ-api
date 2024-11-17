@@ -2,9 +2,9 @@ import express from "express";
 import morgan from "morgan";
 import { config } from "./config/config";
 import ConnectToDB from "./db/db";
-import { startEmailWorker } from "./helpers/email";
 import v1 from "./routes";
 import errorHandler from "./middleware/errors.middleware";
+import { startEmailWorker } from "./helpers/email/email.worker";
 
 const app = express();
 

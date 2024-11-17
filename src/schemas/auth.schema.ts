@@ -27,3 +27,7 @@ export const LoginSchema = z.object({
         "Password must be 8-32 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character",
     }),
 });
+
+export const ForgotPasswordSchema = z.object({
+  email: z.string().email({ message: "Enter a valid email" }),
+});

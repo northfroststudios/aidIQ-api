@@ -8,8 +8,12 @@ import { ValidationError } from "../helpers/errors";
 import { getChannel } from "../helpers/mq";
 import { User } from "../models/user.model";
 import { Verification } from "../models/verification.model";
-import { LoginSchema, RegisterUserSchema } from "../schemas/auth.schema";
-import { UserRegistrationEvent } from "../types/email.types";
+import {
+  ForgotPasswordSchema,
+  LoginSchema,
+  RegisterUserSchema,
+} from "../schemas/auth.schema";
+import { EmailEvent } from "../types/email.types";
 
 function generateVerificationToken(): string {
   return crypto.randomBytes(32).toString("hex");
@@ -62,6 +66,7 @@ export async function Register(data: z.infer<typeof RegisterUserSchema>) {
 
     // Create verification token
     const verificationToken = generateVerificationToken();
+    const verificationUrl = `${process.env.APP_URL}/verify-email?token=${verificationToken}`;
     await Verification.create(
       [
         {
@@ -79,10 +84,14 @@ export async function Register(data: z.infer<typeof RegisterUserSchema>) {
 
     // Send verification email after successful commit
     const channel = getChannel();
-    const event: UserRegistrationEvent = {
+    const event: EmailEvent = {
       email: newUser[0].email,
-      firstName: newUser[0].first_name,
-      verificationToken,
+      subject:"Verify your email address",
+      templateURL: "../../templates/verify-account.html",
+      templateData: {
+        Name: newUser[0].first_name,
+        VerificationURL: verificationUrl,
+      },
       timestamp: Date.now(),
     };
 
@@ -235,5 +244,52 @@ export async function Login(data: z.infer<typeof LoginSchema>) {
     }
 
     throw new Error("unable to login");
+  }
+}
+
+export async function ForgotPassword(
+  data: z.infer<typeof ForgotPasswordSchema>
+) {
+  try {
+    const validationResults = ForgotPasswordSchema.safeParse(data);
+    if (!validationResults.success) {
+      const field_errors = validationResults.error.errors.map((err) => ({
+        field: err.path[0],
+        message: err.message,
+      }));
+      throw new ValidationError(field_errors);
+    }
+
+    const { email } = data;
+
+    const existingUser = await User.findOne({ email });
+    if (!existingUser) {
+      throw new Error("no user exists with the provided email");
+    }
+
+    const verificationToken = generateVerificationToken();
+    const ResetPasswordURL = `${process.env.APP_URL}/forgot-password?email=${existingUser.email}&token=${verificationToken}`;
+
+    const channel = getChannel();
+    const event: EmailEvent = {
+      email: existingUser.email,
+      subject:"Reset your password",
+      templateURL: "../../templates/reset-password.html",
+      templateData: {
+        ResetPasswordURL,
+      },
+      timestamp: Date.now(),
+    };
+
+    channel.sendToQueue("password-reset", Buffer.from(JSON.stringify(event)), {
+      persistent: true,
+    });
+
+    return {
+      message: "a reset link has been sent to your email",
+    };
+  } catch (error) {
+    console.log(error)
+    throw new Error("unable to send reset link");
   }
 }

@@ -1,6 +1,7 @@
-export interface UserRegistrationEvent {
+export interface EmailEvent {
   email: string;
-  firstName: string;
-  verificationToken: string;
+  subject:string
+  templateURL: string;
   timestamp: number;
+  templateData: any;
 }

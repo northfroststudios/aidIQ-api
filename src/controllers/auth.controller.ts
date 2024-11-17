@@ -1,5 +1,10 @@
 import { NextFunction, Request, Response } from "express";
-import { Login, Register, VerifyEmail } from "../services/auth.service";
+import {
+  ForgotPassword,
+  Login,
+  Register,
+  VerifyEmail,
+} from "../services/auth.service";
 
 async function RegisterHandler(
   req: Request,
@@ -37,4 +42,22 @@ async function LoginHandler(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-export { RegisterHandler, VerifyEmailHandler, LoginHandler };
+async function ForgotPasswordHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const data = await ForgotPassword(req.body);
+    res.status(201).json(data);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export {
+  RegisterHandler,
+  VerifyEmailHandler,
+  LoginHandler,
+  ForgotPasswordHandler,
+};
