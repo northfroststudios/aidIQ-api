@@ -1,9 +1,9 @@
 import express from "express";
 import morgan from "morgan";
+import { config } from "./config/config";
 import ConnectToDB from "./db/db";
 import { startEmailWorker } from "./helpers/email";
 import v1 from "./routes";
-import { config } from "./config/config";
 import errorHandler from "./middleware/errors.middleware";
 
 const app = express();
@@ -18,14 +18,15 @@ async function startServer() {
     app.use(express.urlencoded({ extended: true }));
     // Use the morgan middleware for request logging
     app.use(morgan("dev"));
-
-    app.use(errorHandler);
-
     app.use("/api/v1", v1);
 
     app.get("/", (_, res) => {
       res.send("Welcome to the AidIQ API!🚀");
     });
+
+    // Use this middleware to handle errors
+    // You define error-handling middleware last, after other app.use()
+    app.use(errorHandler);
 
     // Initialize RabbitMQ
     await startEmailWorker();

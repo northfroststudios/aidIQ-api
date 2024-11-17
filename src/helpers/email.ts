@@ -1,8 +1,11 @@
 import { Channel, ConsumeMessage } from "amqplib";
+import fs from "fs";
+import * as Handlebars from "handlebars";
 import nodemailer from "nodemailer";
+import path from "path";
+import { config } from "../config/config";
 import { UserRegistrationEvent } from "../types/email.types";
 import { connectQueue } from "./mq";
-import { config } from "../config/config";
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -12,6 +15,14 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+export function compileEmailTemplate(tPath: string, data: any) {
+  const templatePath = path.resolve(__dirname, tPath);
+  const templateSource = fs.readFileSync(templatePath, "utf8");
+  const template = Handlebars.compile(templateSource);
+  const html = template(data);
+  return html;
+}
+
 async function sendVerificationEmail(data: UserRegistrationEvent) {
   const verificationUrl = `${process.env.APP_URL}/verify-email?token=${data.verificationToken}`;
 
@@ -19,12 +30,10 @@ async function sendVerificationEmail(data: UserRegistrationEvent) {
     from: config.SMTPFrom,
     to: data.email,
     subject: "Verify your email address",
-    html: `
-      <h1>Welcome, ${data.firstName}!</h1>
-      <p>Please verify your email address by clicking the link below:</p>
-      <a href="${verificationUrl}">Verify Email</a>
-      <p>This link will expire in 5 minutes.</p>
-    `,
+    html: compileEmailTemplate("../templates/verify-account.html", {
+      Name: data.firstName,
+      VerificationURL: verificationUrl,
+    }),
   });
 }
 

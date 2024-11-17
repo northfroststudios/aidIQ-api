@@ -1,6 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { Register } from "../services/auth.service";
-import { IAPIResponse } from "../types/api.types";
+import { Register, VerifyEmail } from "../services/auth.service";
 
 async function RegisterHandler(
   req: Request,
@@ -11,13 +10,22 @@ async function RegisterHandler(
     const data = await Register(req.body);
     res.status(201).json(data);
   } catch (error) {
-    const data: IAPIResponse = {
-      message:"unsuccessful request",
-      data:error
-    };
-    res.status(500).json(data);
+    // pass the error to the error handler middleware
     next(error);
   }
 }
 
-export { RegisterHandler };
+async function VerifyEmailHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const data = await VerifyEmail(req.body);
+    res.status(201).json(data);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export { RegisterHandler, VerifyEmailHandler };

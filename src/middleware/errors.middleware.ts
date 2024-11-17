@@ -1,13 +1,14 @@
 import { NextFunction, Request, Response } from "express";
+import { ValidationError } from "../helpers/errors";
 
 export default function errorHandler(
-  err: Error,
+  err: Error | ValidationError,
   req: Request,
   res: Response,
   next: NextFunction
 ) {
-  console.error(err.stack);
-  res.status(500).json({
-    message: err.message,
+
+  res.status(err instanceof ValidationError ? 422 : 400).json({
+    error: err.message,
   });
 }

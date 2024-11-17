@@ -18,9 +18,7 @@ function getExpiryDate(): Date {
   return new Date(Date.now() + 5 * 60 * 1000);
 }
 
-export async function Register(
-  data: z.infer<typeof RegisterUserSchema>
-): Promise<IAPIResponse> {
+export async function Register(data: z.infer<typeof RegisterUserSchema>) {
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -111,12 +109,11 @@ export async function Register(
       await session.abortTransaction();
     }
     await session.endSession();
-    console.error("Registration error:", error);
-    throw new Error("there was an error on the server. Please try again");
+    throw new Error(error as string);
   }
 }
 
-export async function VerifyEmail(token: string): Promise<IAPIResponse> {
+export async function VerifyEmail(token: string) {
   const session = await mongoose.startSession();
   session.startTransaction();
 

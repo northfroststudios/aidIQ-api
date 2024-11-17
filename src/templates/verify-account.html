@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap"
+      rel="stylesheet"
+      type="text/css"
+    />
+    <style type="text/css">
+      @import url(https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&display=swap);
+    </style>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      html {
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, system-ui,
+          sans-serif;
+        font-weight: 400;
+        line-height: 1.6;
+        font-size: 16px;
+        font-style: normal;
+        letter-spacing: -0.011em;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: #ffffff;
+      }
+      .content {
+        padding: 20px;
+        text-align: left;
+      }
+      .content h2 {
+        color: #333333;
+      }
+      .content p {
+        font-size: 16px;
+        line-height: 1.5;
+        color: #666666;
+      }
+      .code {
+        display: block;
+        width: fit-content;
+        margin: 20px auto;
+        padding: 10px 20px;
+        text-align: center;
+        font-size: 18px;
+      }
+      .footer {
+        text-align: center;
+        padding: 10px;
+        background-color: #f4f4f4;
+        font-size: 12px;
+        color: #999999;
+      }
+    </style>
+    <style type="text/css">
+      a,
+      span,
+      td,
+      th {
+        -webkit-font-smoothing: antialiased !important;
+        -moz-osx-font-smoothing: grayscale !important;
+      }
+    </style>
+  </head>
+  <body>
+    <table>
+      <tr>
+        <td class="content">
+          <h2>Hello, {{ Name }} 👋!</h2>
+          <p>
+            Thank you for signing up! Please use the following code to activate
+            your account:
+          </p>
+          <a href="${VerificationURL}" class="code">Verify Email</a>
+          <p>
+            This code will expire in 5 minutes. If you have any questions or
+            need help, feel free to reply to this email or contact us at
+            <a href="mailto:support@tryaidiq.com">support@tryaidiq.com</a>.
+          </p>
+          <p>
+            If you did not sign up for this account, please disregard this
+            email.
+          </p>
+          <p>
+            Best regards,<br />
+            Nana Kwasi
+          </p>
+        </td>
+      </tr>
+      <tr>
+        <td class="footer">&copy; 2024 AidIQ. All rights reserved.</td>
+      </tr>
+    </table>
+  </body>
+</html>
