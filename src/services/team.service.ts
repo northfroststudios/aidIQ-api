@@ -31,3 +31,24 @@ export async function CreateTeam(data: z.infer<typeof TeamSchema>, id: string) {
     throw new Error(error as string);
   }
 }
+
+export async function GetTeams(id: string) {
+  try {
+    // Fetch teams for the given user_id
+    const teams = await Team.find({
+      user_id: id,
+    });
+
+    // Return the fetched teams
+    return {
+      message: "Teams fetched successfully",
+      data: teams.map(team => ({
+        id: team.id,
+        name: team.name,
+      })),
+    };
+  } catch (error) {
+    console.error("Error fetching teams:", error);
+    throw new Error(error as string);
+  }
+}
