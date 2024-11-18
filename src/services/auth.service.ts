@@ -26,6 +26,7 @@ function getExpiryDate(): Date {
 }
 
 export async function Register(data: z.infer<typeof RegisterUserSchema>) {
+  // MongoDB sessions provide a way to maintain consistency for a group of operations that are logically related and need to be executed together.
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -44,6 +45,7 @@ export async function Register(data: z.infer<typeof RegisterUserSchema>) {
     const { email, first_name, last_name, password } = data;
 
     // Check if user exists
+    // Sessions are how you mark a query as part of a transaction.
     const existingUser = await User.findOne({ email }).session(session);
     if (existingUser) {
       await session.abortTransaction();
@@ -175,7 +177,6 @@ export async function VerifyEmail(data: z.infer<typeof VerifyEmailSchema>) {
       throw new Error("Failed to update user");
     }
 
-    // Delete the verification token
     await Verification.deleteOne({ _id: verification._id }).session(session);
 
     // Commit the transaction
@@ -228,7 +229,7 @@ export async function Login(data: z.infer<typeof LoginSchema>) {
 
     const access_token = jwt.sign(
       {
-        user_id: existingUser.id,
+        id: existingUser.id,
         email: existingUser.email,
       },
       config.JWTSecret,
@@ -239,7 +240,7 @@ export async function Login(data: z.infer<typeof LoginSchema>) {
 
     const refresh_token = jwt.sign(
       {
-        user_id: existingUser.id,
+        id: existingUser.id,
         email: existingUser.email,
       },
       config.JWTSecret,

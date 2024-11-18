@@ -1,10 +1,12 @@
 import express from "express";
 import authRouter from "./auth.routes";
+import teamRouter from "./team.routes";
+import validateUser from "../middleware/auth.middleware";
 
-export const router = express.Router();
+export const v1 = express.Router();
 
 // Auth Routes
-const v1 = router.use("/auth", authRouter);
+v1.use("/auth", authRouter);
+v1.use("/teams", validateUser, teamRouter);
 
-
-export default v1
+export default v1;
