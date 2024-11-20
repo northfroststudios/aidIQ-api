@@ -3,6 +3,8 @@ import { Document, Schema, Types, model } from "mongoose";
 interface ITeam extends Document {
   name: string;
   user_id: Types.ObjectId;
+  created_at?: Date;
+  updated_at?: Date;
 }
 
 const teamSchema = new Schema<ITeam>(

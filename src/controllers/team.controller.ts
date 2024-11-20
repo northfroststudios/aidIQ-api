@@ -1,5 +1,11 @@
 import { NextFunction, Request, Response } from "express";
-import { CreateTeam, GetTeams } from "../services/team.service";
+import {
+  AddMemberToTeam,
+  CreateTeam,
+  DeactivateTeamMembership,
+  GetTeams,
+  RemoveMemberFromTeam,
+} from "../services/team.service";
 
 async function CreateTeamHandler(
   req: Request,
@@ -25,5 +31,47 @@ async function GetTeamsHandler(
     next(error);
   }
 }
+async function AddMemberToTeamHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const data = await AddMemberToTeam(req.body);
+    res.status(201).json(data);
+  } catch (error) {
+    next(error);
+  }
+}
+async function DeactivateTeamMembershipHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const data = await DeactivateTeamMembership(req.body);
+    res.status(201).json(data);
+  } catch (error) {
+    next(error);
+  }
+}
+async function RemoveMemberFromTeamHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const data = await RemoveMemberFromTeam(req.body);
+    res.status(201).json(data);
+  } catch (error) {
+    next(error);
+  }
+}
 
-export { CreateTeamHandler,GetTeamsHandler };
+export {
+  CreateTeamHandler,
+  GetTeamsHandler,
+  AddMemberToTeamHandler,
+  RemoveMemberFromTeamHandler,
+  DeactivateTeamMembershipHandler,
+};

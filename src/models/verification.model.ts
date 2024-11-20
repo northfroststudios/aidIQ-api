@@ -4,6 +4,8 @@ interface IVerification extends Document {
   user: Types.ObjectId;
   token: string;
   expiry: Date;
+  created_at?: Date;
+  updated_at?: Date;
 }
 
 const verificationSchema = new Schema<IVerification>(

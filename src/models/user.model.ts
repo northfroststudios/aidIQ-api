@@ -6,6 +6,8 @@ interface IUser extends Document {
   email: string;
   password: string;
   is_active: boolean;
+  created_at?: Date;
+  updated_at?: Date;
 }
 
 const userSchema = new Schema<IUser>(
